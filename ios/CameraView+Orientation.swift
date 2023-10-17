@@ -10,7 +10,8 @@ import Foundation
 import UIKit
 
 extension CameraView {
-  /// Returns the current _interface_ orientation of the main window
+  /// Orientation of the input connection (preview)
+    /// Returns the current _interface_ orientation of the main window
   private var windowInterfaceOrientation: UIInterfaceOrientation {
     if #available(iOS 13.0, *) {
       return UIApplication.shared.windows.first?.windowScene?.interfaceOrientation ?? .unknown

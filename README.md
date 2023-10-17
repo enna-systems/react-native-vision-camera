@@ -9,7 +9,7 @@
   <br />
   <br />
   <blockquote><b>📸 The Camera library that sees the vision.</b></blockquote>
-  <pre align="center">npm i <a href="https://www.npmjs.com/package/react-native-vision-camera">react-native-vision-camera</a><br/>npx pod-install                 </pre>
+  <pre align="center">npm i <a href="https://www.npmjs.com/package/react-native-vision-camera">react-native-vision-camera</a>@2<br/>npx pod-install                   </pre>
   <a align="center" href='https://ko-fi.com/F1F8CLXG' target='_blank'>
     <img height='36' style='border:0px;height:36px;' src='https://az743702.vo.msecnd.net/cdn/kofi2.png?v=0' border='0' alt='Buy Me a Coffee at ko-fi.com' />
   </a>
@@ -30,10 +30,20 @@
   <img align="right" width="35%" src="docs/static/img/example.png">
 </div>
 
+### V2
+
+This is the V2 branch of VisionCamera (`2.x.x` on npm). Since VisionCamera V3 (current main, `3.x.x` on npm) features a full codebase rewrite on Android and a huge refactor on the iOS codebase, I will try to provide limited support for VisionCamera V2 for a while until V3 has been tested enough to be considered fully stable.
+
+> [!NOTE]
+> The documentation hosted on https://react-native-vision-camera.com represents the documentation for V3. For V2, read the [docs/](docs/) folder here.
+
+VisionCamera V2 requires React Native 0.70+, iOS 11+, Android API 21+.
+
+
 ### Documentation
 
-* [Guides](https://mrousavy.github.io/react-native-vision-camera/docs/guides)
-* [API](https://mrousavy.github.io/react-native-vision-camera/docs/api)
+* [Guides](https://react-native-vision-camera.com/docs/guides)
+* [API](https://react-native-vision-camera.com/docs/api)
 * [Example](./example/)
 
 ### Features
@@ -41,7 +51,7 @@
 * Photo, Video and Snapshot capture
 * Customizable devices and multi-cameras (smoothly zoom out to "fish-eye" camera)
 * Customizable FPS
-* [Frame Processors](https://mrousavy.github.io/react-native-vision-camera/docs/guides/frame-processors) (JS worklets to run QR-Code scanning, facial recognition, AI object detection, realtime video chats, ...)
+* [Frame Processors](https://react-native-vision-camera.com/docs/guides/frame-processors) (JS worklets to run QR-Code scanning, facial recognition, AI object detection, realtime video chats, ...)
 * Smooth zooming (Reanimated)
 * Fast pause and resume
 * HDR & Night modes
@@ -78,4 +88,4 @@ If you're integrating VisionCamera in a production app, consider [funding this p
 
 <br />
 
-#### 🚀 Get started by [setting up permissions](https://mrousavy.github.io/react-native-vision-camera/docs/guides/)!
+#### 🚀 Get started by [setting up permissions](https://react-native-vision-camera.com/docs/guides/)!

@@ -50,7 +50,7 @@ def REACT_NATIVE_VERSION = reactProperties.getProperty("VERSION_NAME").split("\\
 def FOR_HERMES = System.getenv("FOR_HERMES") == "True"
 rootProject.getSubprojects().forEach({project ->
   if (project.plugins.hasPlugin("com.android.application")) {
-    FOR_HERMES = project.ext.react.enableHermes
+    FOR_HERMES = REACT_NATIVE_VERSION >= 71 && project.hermesEnabled || project.ext.react.enableHermes
   }
 })
 def jsRuntimeDir = {
@@ -83,14 +83,12 @@ buildscript {
     classpath 'de.undercouch:gradle-download-task:4.1.2'
     // noinspection DifferentKotlinGradleVersion
     classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-    classpath "org.jetbrains.kotlin:kotlin-android-extensions:$kotlin_version"
   }
 }
 
 apply plugin: 'com.android.library'
 apply plugin: 'de.undercouch.download'
 apply plugin: 'kotlin-android'
-apply plugin: 'kotlin-android-extensions'
 
 def getExtOrDefault(name) {
   return rootProject.ext.has(name) ? rootProject.ext.get(name) : project.properties['VisionCamera_' + name]
@@ -110,18 +108,18 @@ def resolveBuildType() {
     return buildType
 }
 
-// plugin.js file only exists since REA v2.
-def hasReanimated2 = file("${nodeModules}/react-native-reanimated/plugin.js").exists()
+// WorkletRuntime.h file only exists since Reanimated 3.5.0.
+def hasReanimated3 = file("${nodeModules}/react-native-reanimated/Common/cpp/ReanimatedRuntime/WorkletRuntime.h").exists()
 def disableFrameProcessors = rootProject.ext.has("disableFrameProcessors") ? rootProject.ext.get("disableFrameProcessors").asBoolean() : false
-def ENABLE_FRAME_PROCESSORS = hasReanimated2 && !disableFrameProcessors
+def ENABLE_FRAME_PROCESSORS = hasReanimated3 && !disableFrameProcessors
 
 if (ENABLE_FRAME_PROCESSORS) {
   logger.warn("VisionCamera: Frame Processors are enabled! Building C++ part...")
 } else {
   if (disableFrameProcessors) {
     logger.warn("VisionCamera: Frame Processors are disabled because the user explicitly disabled it ('disableFrameProcessors=${disableFrameProcessors}'). C++ part will not be built.")
-  } else if (!hasReanimated2) {
-    logger.warn("VisionCamera: Frame Processors are disabled because REA v2 does not exist. C++ part will not be built.")
+  } else if (!hasReanimated3) {
+    logger.warn("VisionCamera: Frame Processors are disabled because Reanimated 3.5.0+ is not installed. C++ part will not be built.")
   }
 }
 
@@ -129,6 +127,12 @@ android {
   compileSdkVersion getExtOrIntegerDefault('compileSdkVersion')
   buildToolsVersion getExtOrDefault('buildToolsVersion')
   ndkVersion getExtOrDefault('ndkVersion')
+
+  if (REACT_NATIVE_VERSION >= 71) {
+    buildFeatures {
+      prefab true
+    }
+  }
 
   defaultConfig {
     minSdkVersion 21
@@ -163,7 +167,17 @@ android {
 
   packagingOptions {
     // Exclude all Libraries that are already present in the user's app (through React Native or by him installing REA)
-    excludes = ["**/libc++_shared.so", "**/libfbjni.so", "**/libjsi.so", "**/libreactnativejni.so", "**/libfolly_json.so", "**/libreanimated.so", "**/libjscexecutor.so", "**/libhermes.so", "**/libfolly_runtime.so"]
+    excludes = ["**/libc++_shared.so",
+                "**/libfbjni.so",
+                "**/libjsi.so",
+                "**/libreactnativejni.so",
+                "**/libfolly_json.so",
+                "**/libreanimated.so",
+                "**/libjscexecutor.so",
+                "**/libhermes.so",
+                "**/libfolly_runtime.so",
+                "**/libglog.so",
+    ]
     // META-INF is duplicate by CameraX.
     exclude "META-INF/**"
   }
@@ -261,26 +275,32 @@ repositories {
 def kotlin_version = getExtOrDefault('kotlinVersion')
 
 dependencies {
-  // noinspection GradleDynamicVersion
-  implementation 'com.facebook.react:react-native:+'
+  if (REACT_NATIVE_VERSION >= 71) {
+      implementation "com.facebook.react:react-android:"
+      implementation "com.facebook.react:hermes-android:"
+  } else {
+      // noinspection GradleDynamicVersion
+      implementation 'com.facebook.react:react-native:+'
+  }
 
   if (ENABLE_FRAME_PROCESSORS) {
     implementation project(':react-native-reanimated')
 
-    //noinspection GradleDynamicVersion
-    extractHeaders("com.facebook.fbjni:fbjni:+:headers")
-    //noinspection GradleDynamicVersion
-    extractJNI("com.facebook.fbjni:fbjni:+")
+    if (REACT_NATIVE_VERSION < 71) {
+      //noinspection GradleDynamicVersion
+      extractHeaders("com.facebook.fbjni:fbjni:0.4.0:headers")
+      //noinspection GradleDynamicVersion
+      extractJNI("com.facebook.fbjni:fbjni:0.4.0")
 
-    def rnAarMatcher = "**/react-native/**/*${resolveBuildType()}.aar"
-    if (REACT_NATIVE_VERSION < 69) {
-      rnAarMatcher = "**/**/*.aar"
+      def rnAarMatcher = "**/react-native/**/*${resolveBuildType()}.aar"
+      if (REACT_NATIVE_VERSION < 69) {
+        rnAarMatcher = "**/**/*.aar"
+      }
+
+      def rnAAR = fileTree("$reactNative/android").matching({ it.include rnAarMatcher }).singleFile
+      def jscAAR = fileTree("${nodeModules}/jsc-android/dist/org/webkit/android-jsc").matching({ it.include "**/**/*.aar" }).singleFile
+      extractJNI(files(rnAAR, jscAAR))
     }
-    def rnAAR = fileTree("$reactNative/android").matching({ it.include rnAarMatcher }).singleFile
-    def jscAAR = fileTree("${nodeModules}/jsc-android/dist/org/webkit/android-jsc").matching({ it.include "**/**/*.aar" }).singleFile
-    def jsEngine = FOR_HERMES ? "hermes" : "jsc"
-    def reaAAR = "${nodeModules}/react-native-reanimated/android/react-native-reanimated-${REACT_NATIVE_VERSION}-${jsEngine}.aar"
-    extractJNI(files(rnAAR, jscAAR, reaAAR))
   }
 
   implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
@@ -302,8 +322,8 @@ dependencies {
 if (ENABLE_FRAME_PROCESSORS) {
   // third-party-ndk deps headers
   // mostly a copy of https://github.com/software-mansion/react-native-reanimated/blob/master/android/build.gradle#L115
-
-  def downloadsDir = new File("$buildDir/downloads")
+  def customDownloadsDir = System.getenv("REACT_NATIVE_DOWNLOADS_DIR")
+  def downloadsDir = customDownloadsDir ? new File(customDownloadsDir) : new File("$buildDir/downloads")
   def thirdPartyNdkDir = new File("$buildDir/third-party-ndk")
   def thirdPartyVersionsFile = new File("${nodeModules}/react-native/ReactAndroid/gradle.properties")
   def thirdPartyVersions = new Properties()
@@ -600,11 +620,13 @@ if (ENABLE_FRAME_PROCESSORS) {
 
   tasks.whenTaskAdded { task ->
     if (!task.name.contains('Clean') && (task.name.contains('externalNative') || task.name.contains('CMake'))) {
-      task.dependsOn(extractAARHeaders)
       task.dependsOn(extractJNIFiles)
-      task.dependsOn(prepareJSC)
-      task.dependsOn(prepareHermes)
-      task.dependsOn(prepareThirdPartyNdkHeaders)
+      if (REACT_NATIVE_VERSION < 71) {
+        task.dependsOn(extractAARHeaders)
+        task.dependsOn(prepareThirdPartyNdkHeaders)
+        task.dependsOn(prepareJSC)
+        task.dependsOn(prepareHermes)
+      }
     }
   }
 }
